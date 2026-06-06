@@ -32,9 +32,12 @@ def load_and_prepare_movies():
     movies["genres_clean"] = movies["genres"].fillna("").str.replace("|", " ", regex=False)
 
     movies["item_text"] = (
-        movies["title"].fillna("") + " " +
-        movies["genres_clean"] + " " +
-        movies["tag"]
+        "Movie title: " + movies["title"].fillna("") + ". " +
+        "Genres: " + movies["genres_clean"].fillna("") + ". " +
+        "User tags: " + movies["tag"].fillna("") + ". " +
+        "This movie is related to " + movies["genres_clean"].fillna("") + " " +
+        movies["genres_clean"].fillna("") + " " +
+        movies["tag"].fillna("")
     )
 
     return movies
