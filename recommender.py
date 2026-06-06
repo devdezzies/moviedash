@@ -62,13 +62,15 @@ class MovieRecommender:
             ratings_df = self.ratings
 
         user_ratings = ratings_df[ratings_df["userId"] == user_id]
+
         liked = user_ratings[user_ratings["rating"] >= 4.0]
+        disliked = user_ratings[user_ratings["rating"] <= 2.5]
 
         if liked.empty:
             return None
 
-        vectors = []
-        weights = []
+        liked_vectors = []
+        liked_weights = []
 
         for _, row in liked.iterrows():
             movie_id = row["movieId"]
@@ -77,19 +79,47 @@ class MovieRecommender:
                 continue
 
             idx = self.movie_id_to_index[movie_id]
-            vectors.append(self.embeddings[idx])
+            liked_vectors.append(self.embeddings[idx])
+            liked_weights.append(row["rating"] - 3.0)
 
-            # Rating 4.0 -> 1.0, 4.5 -> 1.5, 5.0 -> 2.0
-            weights.append(row["rating"] - 3.0)
-
-        if not vectors:
+        if not liked_vectors:
             return None
 
-        vectors = np.array(vectors)
-        weights = np.array(weights)
+        liked_vectors = np.array(liked_vectors)
+        liked_weights = np.array(liked_weights)
 
-        user_embedding = np.average(vectors, axis=0, weights=weights)
-        user_embedding = user_embedding / np.linalg.norm(user_embedding)
+        positive_profile = np.average(
+            liked_vectors,
+            axis=0,
+            weights=liked_weights
+        )
+
+        if not disliked.empty:
+            disliked_vectors = []
+
+            for _, row in disliked.iterrows():
+                movie_id = row["movieId"]
+
+                if movie_id not in self.movie_id_to_index:
+                    continue
+
+                idx = self.movie_id_to_index[movie_id]
+                disliked_vectors.append(self.embeddings[idx])
+
+            if disliked_vectors:
+                negative_profile = np.mean(np.array(disliked_vectors), axis=0)
+                user_embedding = positive_profile - 0.5 * negative_profile
+            else:
+                user_embedding = positive_profile
+        else:
+            user_embedding = positive_profile
+
+        norm = np.linalg.norm(user_embedding)
+
+        if norm == 0:
+            return None
+
+        user_embedding = user_embedding / norm
 
         return user_embedding
 
